@@ -1,0 +1,26 @@
+import logging
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from conversation_handler import get_conversation_handler, create_application
+from start_reset import start, ajuda, reset
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+
+TOKEN = "8384463381:AAFDUVD5pX9XQYzGWkM8Daj1yUL1fkPIIBA"
+
+
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("ajuda", ajuda))
+    app.add_handler(CommandHandler("reset", reset))
+    conversation_handler_obj = get_conversation_handler()
+    app.add_handler(conversation_handler_obj)
+
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
