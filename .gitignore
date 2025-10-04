@@ -13,3 +13,9 @@ wheels/
 *.secret
 *.key
 *.token
+
+# Arquivos sensíveis
+.env
+*.log
+config_local.py
+config.py.local

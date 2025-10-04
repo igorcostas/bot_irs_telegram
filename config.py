@@ -1,20 +1,27 @@
 """
 Configurações do Bot IRS Portugal
-Chaves embutidas diretamente (substitua por variáveis de ambiente em produção)
+IMPORTANTE: Use variáveis de ambiente em produção!
 """
 
-# Tokens das APIs (hardcoded para teste)
-TELEGRAM_BOT_TOKEN = "***TELEGRAM_TOKEN_REMOVED***"
-GROQ_API_KEY = "***GROQ_API_KEY_REMOVED***"
+import os
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente do arquivo .env
+load_dotenv()
+
+# ⚠️ SEGURANÇA: API Keys devem estar em arquivo .env (não commitado)
+# Para desenvolvimento: copie .env.example para .env e preencha
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "COLE_SEU_TOKEN_AQUI")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "COLE_SUA_KEY_AQUI")
 
 # Configurações do Bot
-BOT_NAME = "IRS Portugal Assistant"
-BOT_VERSION = "1.0.0"
+BOT_NAME = "IRS Portugal Assistant - Marinete"
+BOT_VERSION = "2.0.0"
 MAX_MESSAGE_LENGTH = 4000
 
 # Configurações LLM
 LLM_PROVIDER = "groq"
-MODEL_NAME = "moonshotai/kimi-k2-instruct-0905"
+MODEL_NAME = os.getenv("MODEL_NAME", "moonshotai/kimi-k2-instruct-0905")
 
 # Configurações IRS Portugal 2025
 IRS_YEAR = 2025
