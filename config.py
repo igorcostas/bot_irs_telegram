@@ -11,8 +11,16 @@ load_dotenv()
 
 # ⚠️ SEGURANÇA: API Keys devem estar em arquivo .env (não commitado)
 # Para desenvolvimento: copie .env.example para .env e preencha
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "COLE_SEU_TOKEN_AQUI")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "COLE_SUA_KEY_AQUI")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+if not TELEGRAM_BOT_TOKEN:
+    raise ValueError(
+        "TELEGRAM_BOT_TOKEN not found in environment variables. Please set it in .env file"
+    )
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError(
+        "GROQ_API_KEY not found in environment variables. Please set it in .env file"
+    )
 
 # Configurações do Bot
 BOT_NAME = "IRS Portugal Assistant - Marinete"
