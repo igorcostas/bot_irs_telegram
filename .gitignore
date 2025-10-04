@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Ignorar arquivos sensíveis
+*.secret
+*.key
+*.token
