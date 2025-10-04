@@ -1,0 +1,226 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║        📱 COMANDOS DO BOT IRS PORTUGAL - MARINETE NO TELEGRAM               ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  🎯 COMANDOS PRINCIPAIS
+═══════════════════════════════════════════════════════════════════════════════
+
+/start
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Descrição:  Mensagem de boas-vindas e apresentação da Marinete
+Quando usar: Primeira vez que abrir o bot ou para ver menu principal
+Exemplo:    /start
+
+
+/simular
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Descrição:  Inicia simulação completa de IRS com 20 perguntas interativas
+Quando usar: Quando quiser fazer cálculo detalhado do teu IRS
+Duração:    ~5 minutos
+O que faz:  - Pergunta sobre rendimentos, estado civil, dependentes
+            - Calcula IRS a pagar ou reembolso
+            - Compara tributação individual vs conjunta
+            - Sugere otimizações fiscais
+Exemplo:    /simular
+
+
+/calcular [valor] [deduções]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Descrição:  Cálculo rápido de IRS (sem perguntas)
+Quando usar: Quando quiser uma estimativa rápida
+Formato:    /calcular [rendimento] [deduções opcionais]
+
+Exemplos:
+  /calcular 30000
+  /calcular 35000 saude:500
+  /calcular 40000 saude:800 educacao:400
+  /calcular 45000 saude:1000 educacao:600 habitacao:200
+
+
+/deducoes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Descrição:  Lista completa de deduções fiscais IRS 2025
+Quando usar: Quando quiser saber que despesas podes deduzir
+Mostra:     - Saúde (15% até 1.000€)
+            - Educação (30% até 800€)
+            - Habitação (15% até 296€)
+            - Lares (25% até 403,75€)
+            - PPR, donativos, despesas gerais
+            - Dicas e exemplos práticos
+Exemplo:    /deducoes
+
+
+/ajuda
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Descrição:  Mostra esta lista completa de comandos e ajuda
+Quando usar: Quando tiveres dúvidas sobre como usar o bot
+Exemplo:    /ajuda
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  🛠️ COMANDOS AUXILIARES
+═══════════════════════════════════════════════════════════════════════════════
+
+/reset
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Descrição:  Limpa todos os dados guardados e recomeça
+Quando usar: Quando quiseres começar uma nova simulação do zero
+Exemplo:    /reset
+
+
+/cancel
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Descrição:  Cancela a operação atual (ex: meio de uma simulação)
+Quando usar: Quando quiseres parar o que estás a fazer
+Exemplo:    /cancel
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  💬 CONVERSAÇÃO NATURAL (SEM COMANDOS)
+═══════════════════════════════════════════════════════════════════════════════
+
+Podes conversar naturalmente com a Marinete! Basta escrever a tua pergunta:
+
+EXEMPLOS DE PERGUNTAS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"Quanto pago de IRS com 35.000€?"
+"Sou casado, compensa fazer IRS em conjunto?"
+"Posso deduzir despesas de ginásio?"
+"Como funciona o IRS Jovem?"
+"Tenho direito a reembolso?"
+"Quanto posso deduzir em saúde?"
+"O que é o mínimo de existência?"
+"Quais são os escalões de IRS 2025?"
+"Como calcular retenção na fonte?"
+"Vale a pena fazer PPR?"
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  📝 EXEMPLOS DE USO COMPLETO
+═══════════════════════════════════════════════════════════════════════════════
+
+EXEMPLO 1 - SIMULAÇÃO COMPLETA:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tu:  /simular
+Bot: Olá! Sou a Marinete... Vou fazer 20 perguntas...
+     
+     Pergunta 1/20: Qual é o teu estado civil?
+Tu:  Casado(a)
+Bot: Pergunta 2/20: Qual é o teu tipo de trabalho?
+Tu:  Trabalho dependente
+Bot: Pergunta 3/20: Para que ano fiscal...
+[... continua até pergunta 20 ...]
+Bot: [Cálculo completo detalhado com sugestões]
+
+
+EXEMPLO 2 - CÁLCULO RÁPIDO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tu:  /calcular 30000 saude:500 educacao:300
+Bot: ⚡ Cálculo Rápido:
+     
+     Rendimento: 30.000€
+     Deduções: Saúde 500€, Educação 300€
+     Escalão: 3º (23%)
+     IRS estimado: ~4.200€
+     [explicação breve]
+
+
+EXEMPLO 3 - CONSULTAR DEDUÇÕES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tu:  /deducoes
+Bot: 🧾 Principais Deduções IRS 2025:
+     
+     1. DESPESAS DE SAÚDE (15%)
+        • Máximo: 1.000€
+        • Inclui: consultas, medicamentos...
+     [lista completa detalhada]
+
+
+EXEMPLO 4 - CONVERSA NATURAL:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tu:  Ganho 2500€ por mês, quanto pago de IRS?
+Bot: Ah! Deixa-me calcular para ti...
+     
+     Com 2.500€/mês (30.000€/ano):
+     - Enquadras-te no 3º escalão (23%)
+     - IRS anual estimado: ~4.500€
+     [explicação personalizada da Marinete]
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  🎯 FLUXO RECOMENDADO PARA NOVOS UTILIZADORES
+═══════════════════════════════════════════════════════════════════════════════
+
+PASSO 1: /start
+         ↓
+         Lê a apresentação da Marinete
+
+PASSO 2: /deducoes
+         ↓
+         Vê que despesas podes deduzir
+
+PASSO 3: /simular
+         ↓
+         Faz simulação completa (20 perguntas)
+
+PASSO 4: Faz perguntas específicas
+         ↓
+         "Compensa IRS conjunto?"
+         "Como otimizar meu IRS?"
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  💡 DICAS IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Podes cancelar qualquer operação com /cancel
+✅ Se ficares perdido, usa /ajuda
+✅ Para recomeçar tudo do zero, usa /reset
+✅ Não tens limite de perguntas - conversa à vontade!
+✅ A Marinete responde em português de Portugal
+✅ Podes fazer cálculos rápidos sem fazer simulação completa
+✅ Todas as respostas são personalizadas para a tua situação
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  ⚠️ NOTAS IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  Este bot é INFORMATIVO e ORIENTATIVO
+⚠️  Não substitui aconselhamento de contabilista certificado
+⚠️  Cálculos são estimativas - confirma no Portal das Finanças
+⚠️  Para casos complexos, consulta um profissional
+
+✅ Bot usa dados atualizados de IRS 2025 Portugal
+✅ Escalões e deduções conforme legislação vigente
+✅ IA especializada em IRS Portugal (Groq + Moonshot AI)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  📱 RESUMO RÁPIDO - COMANDOS ESSENCIAIS
+═══════════════════════════════════════════════════════════════════════════════
+
+/start      → Iniciar / Ver menu
+/simular    → Simulação completa (20 perguntas)
+/calcular   → Cálculo rápido
+/deducoes   → Ver deduções fiscais
+/ajuda      → Ver esta ajuda
+/reset      → Recomeçar
+/cancel     → Cancelar
+
+OU simplesmente pergunta qualquer coisa! 😊
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🤖 Marinete - Tua técnica contábil virtual especializada em IRS Portugal
+🇵🇹 Criado com ❤️ para ajudar portugueses com o IRS
+⚡ Powered by Groq + Moonshot AI (Kimi K2)
+
+═══════════════════════════════════════════════════════════════════════════════
+

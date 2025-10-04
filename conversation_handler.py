@@ -1,9 +1,9 @@
 """
-Conversation Handler Atualizado - Integra o sistema de 20 perguntas com análise completa
+Conversation Handler - Bot IRS Portugal com Marinete
+Sistema de simulação de IRS com 20 perguntas interativas
 """
 
 import logging
-import json
 from typing import Dict, Any
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import (
@@ -16,38 +16,45 @@ from telegram.ext import (
     filters,
 )
 
-# Importar os módulos LLM existentes
-from llm_handler.grok_handler import GrokHandler
+# Importar handler LLM
+from llm_handler.groq_handler import GroqHandler
 
+# Importar prompts e perguntas
+from prompts import (
+    WELCOME_MESSAGE,
+    SIMULATION_PROMPT,
+    DEDUCTIONS_INFO,
+    HELP_MESSAGE,
+    PERGUNTAS_IRS,
+    SYSTEM_PROMPT,
+)
 
-# Importar o novo sistema de análise
-from main_integration import PostAnalysisHandler
-
-# Estados do questionário
+# Estados da conversação (20 perguntas + estados auxiliares)
 (
-    AGUARDANDO_NOME,
-    AGUARDANDO_RESPOSTA_1,
-    AGUARDANDO_RESPOSTA_2,
-    AGUARDANDO_RESPOSTA_3,
-    AGUARDANDO_RESPOSTA_4,
-    AGUARDANDO_RESPOSTA_5,
-    AGUARDANDO_RESPOSTA_6,
-    AGUARDANDO_RESPOSTA_7,
-    AGUARDANDO_RESPOSTA_8,
-    AGUARDANDO_RESPOSTA_9,
-    AGUARDANDO_RESPOSTA_10,
-    AGUARDANDO_RESPOSTA_11,
-    AGUARDANDO_RESPOSTA_12,
-    AGUARDANDO_RESPOSTA_13,
-    AGUARDANDO_RESPOSTA_14,
-    AGUARDANDO_RESPOSTA_15,
-    AGUARDANDO_RESPOSTA_16,
-    AGUARDANDO_RESPOSTA_17,
-    AGUARDANDO_RESPOSTA_18,
-    AGUARDANDO_RESPOSTA_19,
-    AGUARDANDO_RESPOSTA_20,
-    ANALISE_FINALIZADA,
-) = range(22)
+    MENU_PRINCIPAL,
+    PERGUNTA_1,
+    PERGUNTA_2,
+    PERGUNTA_3,
+    PERGUNTA_4,
+    PERGUNTA_5,
+    PERGUNTA_6,
+    PERGUNTA_7,
+    PERGUNTA_8,
+    PERGUNTA_9,
+    PERGUNTA_10,
+    PERGUNTA_11,
+    PERGUNTA_12,
+    PERGUNTA_13,
+    PERGUNTA_14,
+    PERGUNTA_15,
+    PERGUNTA_16,
+    PERGUNTA_17,
+    PERGUNTA_18,
+    PERGUNTA_19,
+    PERGUNTA_20,
+    PROCESSANDO_RESULTADO,
+    CALCULO_RAPIDO,
+) = range(23)
 
 # Configurar logging
 logging.basicConfig(
@@ -58,371 +65,383 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class ConversationHandlerBot:
-    """Handler principal para o bot contábil com análise completa"""
+class IRSBotHandler:
+    """Handler principal para o bot IRS Portugal com Marinete"""
 
     def __init__(self):
-        self.grok = GrokHandler()
-        # ✅ NOVA INTEGRAÇÃO - Sistema de análise pós-questionário
-        self.post_analysis = PostAnalysisHandler()
-
-        # Perguntas do questionário empresarial
-        self.perguntas = [
-            {
-                "pergunta": "🏢 Qual o nome da sua empresa?",
-                "chave": "nome_empresa",
-                "tipo": "texto",
-            },
-            {
-                "pergunta": "📊 Qual o faturamento anual aproximado da empresa? (em R$)",
-                "chave": "faturamento_anual",
-                "tipo": "numero",
-                "opcoes": [
-                    "Até 360mil",
-                    "360mil - 4.8mi",
-                    "4.8mi - 78mi",
-                    "Acima 78mi",
-                ],
-            },
-            {
-                "pergunta": "👥 Quantos funcionários a empresa possui?",
-                "chave": "num_funcionarios",
-                "tipo": "numero",
-            },
-            {
-                "pergunta": "🏭 Qual a atividade principal da empresa?",
-                "chave": "atividade_principal",
-                "tipo": "texto",
-                "opcoes": [
-                    "Comércio",
-                    "Serviços",
-                    "Indústria",
-                    "Agronegócio",
-                    "Outros",
-                ],
-            },
-            {
-                "pergunta": "⏰ A empresa tem histórico de atrasos em obrigações fiscais?",
-                "chave": "atraso_obrigacoes",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Às vezes"],
-            },
-            {
-                "pergunta": "📝 A maioria dos processos contábeis são feitos manualmente?",
-                "chave": "controle_manual",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Parcialmente"],
-            },
-            {
-                "pergunta": "📄 A empresa emite muitas notas fiscais por mês? (+100)",
-                "chave": "volume_nfs_alto",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não"],
-            },
-            {
-                "pergunta": "💻 Usa sistema contábil integrado (ERP)?",
-                "chave": "usa_sistema_integrado",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Sistema básico"],
-            },
-            {
-                "pergunta": "😰 A equipe contábil está sobrecarregada?",
-                "chave": "equipe_sobrecarregada",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Às vezes"],
-            },
-            {
-                "pergunta": "🏦 Tem dificuldades na conciliação bancária?",
-                "chave": "dificuldade_conciliacao",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Às vezes"],
-            },
-            {
-                "pergunta": "📊 Gera relatórios gerenciais regularmente?",
-                "chave": "gera_relatorios",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Raramente"],
-            },
-            {
-                "pergunta": "🔐 Tem controles internos bem definidos?",
-                "chave": "controles_internos",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Parcialmente"],
-            },
-            {
-                "pergunta": "💾 Faz backup dos dados regularmente?",
-                "chave": "backups_regulares",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Às vezes"],
-            },
-            {
-                "pergunta": "📋 Os processos estão documentados?",
-                "chave": "processos_documentados",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Parcialmente"],
-            },
-            {
-                "pergunta": "🎓 A equipe recebe treinamento regular?",
-                "chave": "equipe_treinada",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Raramente"],
-            },
-            {
-                "pergunta": "📅 Tem prazo fiscal próximo (ECF, SPED, etc.)?",
-                "chave": "prazo_fiscal_proximo",
-                "tipo": "boolean",
-                "opcoes": ["Sim", "Não", "Não sei"],
-            },
-            {
-                "pergunta": "⚡ Qual seria a prioridade máxima para automatizar?",
-                "chave": "prioridade_automacao",
-                "tipo": "texto",
-                "opcoes": [
-                    "Lançamentos NF-e",
-                    "Conciliação bancária",
-                    "Folha pagamento",
-                    "Relatórios",
-                    "SPED/Fiscal",
-                ],
-            },
-            {
-                "pergunta": "💰 Qual orçamento mensal disponível para automação?",
-                "chave": "orcamento_automacao",
-                "tipo": "numero",
-                "opcoes": ["Até R$ 2mil", "R$ 2-5mil", "R$ 5-10mil", "Acima R$ 10mil"],
-            },
-            {
-                "pergunta": "⏱️ Em quanto tempo gostaria de ver resultados?",
-                "chave": "prazo_resultados",
-                "tipo": "texto",
-                "opcoes": ["30 dias", "60 dias", "90 dias", "6 meses"],
-            },
-            {
-                "pergunta": "🎯 Qual o principal objetivo com as automações?",
-                "chave": "objetivo_principal",
-                "tipo": "texto",
-                "opcoes": [
-                    "Reduzir custos",
-                    "Ganhar tempo",
-                    "Reduzir erros",
-                    "Crescer sem contratar",
-                    "Compliance fiscal",
-                ],
-            },
-        ]
+        self.groq = GroqHandler()
+        logger.info("✅ IRSBotHandler inicializado com Marinete")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Inicia o questionário"""
+        """Comando /start - Boas-vindas"""
         user = update.effective_user
 
         # Limpar dados anteriores
         context.user_data.clear()
-        context.user_data["respostas_questionario"] = {}
-        context.user_data["pergunta_atual"] = 0
 
-        logger.info(f"Usuário {user.id} iniciou questionário")
+        logger.info(f"Usuário {user.id} ({user.first_name}) iniciou o bot")
 
         await update.message.reply_text(
-            f"👋 Olá {user.first_name}! Sou a **Maria**, sua técnica contábil virtual!\n\n"
-            "🎯 Vou fazer 20 perguntas para criar um **diagnóstico completo** da sua empresa "
-            "e sugerir automações personalizadas.\n\n"
-            "📊 Ao final, você receberá:\n"
-            "• Análise detalhada da situação atual\n"
-            "• Plano de ação com cronograma\n"
-            "• Cálculo de ROI e economia estimada\n"
-            "• Cronograma de implementação\n\n"
-            "⏱️ Leva apenas 5 minutos. Vamos começar?\n\n"
-            f"**PERGUNTA 1/20**\n{self.perguntas[0]['pergunta']}",
+            WELCOME_MESSAGE,
             parse_mode="Markdown",
         )
 
-        return AGUARDANDO_NOME
+        return ConversationHandler.END
+
+    async def simular(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Comando /simular - Inicia simulação completa de IRS"""
+        user = update.effective_user
+
+        # Limpar dados anteriores e iniciar novo questionário
+        context.user_data.clear()
+        context.user_data["respostas_irs"] = {}
+        context.user_data["pergunta_atual"] = 0
+
+        logger.info(f"Usuário {user.id} iniciou simulação de IRS")
+
+        await update.message.reply_text(
+            SIMULATION_PROMPT,
+            parse_mode="Markdown",
+        )
+
+        # Enviar primeira pergunta
+        return await self._enviar_pergunta(update, context, 0)
+
+    async def _enviar_pergunta(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE, numero_pergunta: int
+    ) -> int:
+        """Envia uma pergunta específica do questionário"""
+
+        if numero_pergunta >= len(PERGUNTAS_IRS):
+            # Terminou as perguntas
+            return await self.finalizar_questionario(update, context)
+
+        pergunta_data = PERGUNTAS_IRS[numero_pergunta]
+
+        # Criar teclado se houver opções
+        reply_markup = None
+        if "opcoes" in pergunta_data and pergunta_data["opcoes"]:
+            keyboard = [[KeyboardButton(opcao)] for opcao in pergunta_data["opcoes"]]
+            reply_markup = ReplyKeyboardMarkup(
+                keyboard, one_time_keyboard=True, resize_keyboard=True
+            )
+
+        # Montar mensagem
+        mensagem = f"**Pergunta {numero_pergunta + 1}/20**\n\n"
+        mensagem += pergunta_data["pergunta"]
+
+        if "dica" in pergunta_data:
+            mensagem += f"\n\n💡 _Dica: {pergunta_data['dica']}_"
+
+        await update.message.reply_text(
+            mensagem,
+            reply_markup=reply_markup,
+            parse_mode="Markdown",
+        )
+
+        # Retornar estado correspondente à pergunta
+        return PERGUNTA_1 + numero_pergunta
 
     async def processar_resposta(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:
-        """Processa cada resposta e avança para próxima pergunta"""
+        """Processa cada resposta do questionário"""
 
         pergunta_atual = context.user_data.get("pergunta_atual", 0)
         resposta = update.message.text
 
-        # Salvar resposta
-        chave = self.perguntas[pergunta_atual]["chave"]
-        context.user_data["respostas_questionario"][chave] = resposta
+        # Validar e salvar resposta
+        pergunta_data = PERGUNTAS_IRS[pergunta_atual]
+        chave = pergunta_data["chave"]
 
-        # Log da resposta
-        logger.info(f"Pergunta {pergunta_atual + 1}: {chave} = {resposta}")
+        context.user_data["respostas_irs"][chave] = resposta
+
+        logger.info(f"Resposta {pergunta_atual + 1}: {chave} = {resposta}")
 
         # Avançar para próxima pergunta
         pergunta_atual += 1
         context.user_data["pergunta_atual"] = pergunta_atual
 
         # Verificar se terminaram as perguntas
-        if pergunta_atual >= len(self.perguntas):
-            # ✅ NOVA FUNCIONALIDADE - Processar análise completa
-            await self.finalizar_questionario(update, context)
-            return ANALISE_FINALIZADA
+        if pergunta_atual >= len(PERGUNTAS_IRS):
+            return await self.finalizar_questionario(update, context)
 
-        # Mostrar próxima pergunta
-        pergunta_data = self.perguntas[pergunta_atual]
-
-        # Criar teclado se há opções
-        reply_markup = None
-        if "opcoes" in pergunta_data:
-            keyboard = [[KeyboardButton(opcao)] for opcao in pergunta_data["opcoes"]]
-            reply_markup = ReplyKeyboardMarkup(
-                keyboard, one_time_keyboard=True, resize_keyboard=True
-            )
-
+        # Enviar próxima pergunta
         await update.message.reply_text(
-            f"✅ Resposta registrada!\n\n"
-            f"**PERGUNTA {pergunta_atual + 1}/20**\n"
-            f"{pergunta_data['pergunta']}",
-            reply_markup=reply_markup,
-            parse_mode="Markdown",
+            "✅ Resposta registada!",
+            reply_markup=ReplyKeyboardRemove(),
         )
 
-        # Retornar estado baseado na pergunta atual
-        return AGUARDANDO_RESPOSTA_1 + pergunta_atual - 1
+        return await self._enviar_pergunta(update, context, pergunta_atual)
 
     async def finalizar_questionario(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ):
-        """✅ NOVA FUNÇÃO - Finaliza questionário e inicia análise completa"""
+        """Finaliza questionário e processa cálculo de IRS"""
 
-        # Remover teclado
         await update.message.reply_text(
-            "✅ **Questionário finalizado!**\n\n"
-            "🤖 Agora vou analisar todas as suas respostas e criar um diagnóstico completo da sua empresa...",
+            "✅ **Questionário concluído!**\n\n"
+            "🤖 Agora vou analisar as tuas respostas e calcular o teu IRS...",
             reply_markup=ReplyKeyboardRemove(),
             parse_mode="Markdown",
         )
 
-        # ✅ INTEGRAÇÃO PRINCIPAL - Chamar sistema de análise
-        await self.post_analysis.processar_respostas_completas(update, context)
+        # Processar com LLM
+        respostas = context.user_data.get("respostas_irs", {})
+
+        try:
+            # Criar prompt para análise
+            prompt_analise = self._criar_prompt_analise(respostas)
+
+            # Gerar análise com Groq
+            resultado = self.groq.generate_response_sync(
+                user_message=prompt_analise, system_prompt=SYSTEM_PROMPT
+            )
+
+            # Enviar resultado
+            await update.message.reply_text(
+                resultado,
+                parse_mode="Markdown",
+            )
+
+            # Oferecer opções
+            await update.message.reply_text(
+                "\n📊 **O que desejas fazer agora?**\n\n"
+                "• `/simular` - Nova simulação\n"
+                "• `/deducoes` - Ver deduções disponíveis\n"
+                "• `/ajuda` - Ver outros comandos\n\n"
+                "Ou faz-me outra pergunta! 😊",
+                parse_mode="Markdown",
+            )
+
+        except Exception as e:
+            logger.error(f"Erro ao processar resultado: {e}")
+            await update.message.reply_text(
+                f"❌ Erro ao processar dados. Tenta novamente.\n"
+                f"Erro técnico: {str(e)}\n\n"
+                f"Usa `/reset` para recomeçar.",
+            )
+
+        return ConversationHandler.END
+
+    def _criar_prompt_analise(self, respostas: Dict[str, Any]) -> str:
+        """Cria prompt para análise das respostas"""
+
+        prompt = "Com base nas seguintes informações, calcula e explica o IRS:\n\n"
+
+        for i, pergunta in enumerate(PERGUNTAS_IRS):
+            chave = pergunta["chave"]
+            resposta = respostas.get(chave, "Não informado")
+            prompt += f"{i + 1}. {pergunta['pergunta']}\n   Resposta: {resposta}\n\n"
+
+        prompt += """
+Por favor, fornece:
+
+1. **💰 CÁLCULO DETALHADO DO IRS:**
+   - Rendimento coletável
+   - Escalão aplicável e taxa
+   - Valor de IRS a pagar/receber
+   - Impacto das deduções
+
+2. **📊 COMPARAÇÃO (se aplicável):**
+   - Tributação individual vs conjunta
+   - Qual compensa mais e porquê
+
+3. **💡 SUGESTÕES DE OTIMIZAÇÃO:**
+   - Como reduzir o IRS legalmente
+   - Deduções que pode aproveitar melhor
+   - Benefícios fiscais disponíveis
+
+4. **🎯 PRÓXIMOS PASSOS:**
+   - Quando e como entregar a declaração
+   - Documentos necessários
+   - Prazos importantes
+
+Formata de forma clara, com emojis e seções bem definidas. Lembra-te: és a Marinete, fala de forma natural e empática!
+"""
+
+        return prompt
+
+    async def calcular_rapido(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Comando /calcular - Cálculo rápido de IRS"""
+
+        texto = update.message.text.replace("/calcular", "").strip()
+
+        if not texto:
+            await update.message.reply_text(
+                "⚡ **Cálculo Rápido de IRS**\n\n"
+                "Usa assim:\n"
+                "`/calcular 30000`\n"
+                "ou\n"
+                "`/calcular 30000 saude:500 educacao:300`\n\n"
+                "Valores em euros (€)",
+                parse_mode="Markdown",
+            )
+            return ConversationHandler.END
+
+        try:
+            # Processar entrada
+            prompt = f"""
+Faz um cálculo rápido de IRS para: {texto}
+
+Considera:
+- Trabalhador dependente, solteiro, sem dependentes
+- Rendimento e deduções fornecidos
+- Portugal Continental, 2024
+
+Mostra:
+1. Rendimento coletável
+2. Escalão e taxa
+3. IRS a pagar/receber (estimativa)
+4. Breve explicação
+
+Sê breve e direto! Máximo 10 linhas.
+"""
+
+            resultado = self.groq.generate_response_sync(
+                user_message=prompt, system_prompt=SYSTEM_PROMPT
+            )
+
+            await update.message.reply_text(
+                f"⚡ **Cálculo Rápido:**\n\n{resultado}\n\n"
+                f"💡 Para simulação detalhada, usa `/simular`",
+                parse_mode="Markdown",
+            )
+
+        except Exception as e:
+            logger.error(f"Erro no cálculo rápido: {e}")
+            await update.message.reply_text(
+                f"❌ Erro no cálculo. Verifica o formato!\nExemplo: `/calcular 30000`"
+            )
+
+        return ConversationHandler.END
+
+    async def deducoes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Comando /deducoes - Mostra informações sobre deduções"""
+
+        await update.message.reply_text(
+            DEDUCTIONS_INFO,
+            parse_mode="Markdown",
+        )
+
+        return ConversationHandler.END
+
+    async def ajuda(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Comando /ajuda - Mostra ajuda"""
+
+        await update.message.reply_text(
+            HELP_MESSAGE,
+            parse_mode="Markdown",
+        )
+
+        return ConversationHandler.END
 
     async def reset(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Reset do questionário"""
+        """Comando /reset - Reinicia o bot"""
+
         context.user_data.clear()
 
         await update.message.reply_text(
-            "🔄 Questionário resetado!\n\nDigite /start para começar novamente.",
+            "🔄 Dados limpos!\n\n"
+            "Usa `/start` para começar de novo ou `/simular` para nova simulação.",
             reply_markup=ReplyKeyboardRemove(),
         )
 
         return ConversationHandler.END
 
     async def cancelar(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        """Cancela o questionário"""
+        """Comando /cancel - Cancela operação atual"""
+
         await update.message.reply_text(
-            "❌ Questionário cancelado.\n\n"
-            "Digite /start quando quiser fazer o diagnóstico.",
+            "❌ Operação cancelada.\n\n"
+            "Usa `/start` para ver opções ou `/simular` para nova simulação.",
             reply_markup=ReplyKeyboardRemove(),
         )
 
         return ConversationHandler.END
 
-    async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Mostra status atual do questionário"""
-        pergunta_atual = context.user_data.get("pergunta_atual", 0)
-        total_respostas = len(context.user_data.get("respostas_questionario", {}))
+    async def mensagem_livre(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Processa mensagens livres (conversação natural)"""
 
-        await update.message.reply_text(
-            f"📊 **Status do Questionário**\n\n"
-            f"• Pergunta atual: {pergunta_atual + 1}/20\n"
-            f"• Respostas coletadas: {total_respostas}\n"
-            f"• Progresso: {int((total_respostas / 20) * 100)}%\n\n"
-            "Digite /reset para recomeçar ou continue respondendo.",
-            parse_mode="Markdown",
-        )
+        mensagem = update.message.text
 
-    async def ajuda(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Mostra ajuda"""
-        await update.message.reply_text(
-            "🆘 **AJUDA - Bot Técnico Contábil**\n\n"
-            "📋 **Comandos disponíveis:**\n"
-            "/start - Iniciar diagnóstico empresarial\n"
-            "/status - Ver progresso atual\n"
-            "/reset - Recomeçar questionário\n"
-            "/cancel - Cancelar questionário\n"
-            "/ajuda - Esta mensagem\n\n"
-            "🎯 **Como funciona:**\n"
-            "1. Respondo 20 perguntas sobre sua empresa\n"
-            "2. Recebo análise completa automática\n"
-            "3. Vejo plano de automação personalizado\n"
-            "4. Obtenho cronograma e cálculos de ROI\n\n"
-            "⏱️ Tempo: ~5 minutos\n"
-            "📊 Resultado: Diagnóstico profissional completo",
-            parse_mode="Markdown",
-        )
+        try:
+            # Gerar resposta com contexto
+            resposta = await self.groq.generate_response(
+                user_message=mensagem, system_prompt=SYSTEM_PROMPT
+            )
+
+            await update.message.reply_text(
+                resposta,
+                parse_mode="Markdown",
+            )
+
+        except Exception as e:
+            logger.error(f"Erro na mensagem livre: {e}")
+            await update.message.reply_text(
+                "Desculpa, tive um problema ao processar a tua mensagem. "
+                "Podes tentar de novo? 😊"
+            )
+
+        return ConversationHandler.END
 
     def get_conversation_handler(self) -> ConversationHandler:
         """Retorna o ConversationHandler configurado"""
 
-        states = {
-            AGUARDANDO_NOME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, self.processar_resposta)
-            ],
-        }
+        # Estados para as 20 perguntas
+        states = {}
 
-        # Adicionar estados para cada pergunta
-        for i in range(1, 20):
-            state_name = AGUARDANDO_RESPOSTA_1 + i - 1
-            states[state_name] = [
+        # Cada pergunta tem seu estado
+        for i in range(20):
+            states[PERGUNTA_1 + i] = [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, self.processar_resposta)
             ]
 
-        # Estado final
-        states[ANALISE_FINALIZADA] = [
-            MessageHandler(
-                filters.TEXT & ~filters.COMMAND, self.post_analysis.callback_handler
-            )
-        ]
-
         return ConversationHandler(
-            entry_points=[CommandHandler("start", self.start)],
+            entry_points=[
+                CommandHandler("simular", self.simular),
+            ],
             states=states,
             fallbacks=[
                 CommandHandler("cancel", self.cancelar),
                 CommandHandler("reset", self.reset),
-                CommandHandler("status", self.status),
-                CommandHandler("ajuda", self.ajuda),
             ],
             per_user=True,
             per_chat=True,
         )
 
 
-# ✅ FUNÇÕES AUXILIARES PARA INTEGRAÇÃO
 def create_application():
-    """Cria e configura a aplicação do bot"""
+    """Cria e configura a aplicação do bot IRS"""
     from config import TELEGRAM_BOT_TOKEN
 
     # Criar aplicação
-    application = (
-        Application.builder()
-        .token(TELEGRAM_BOT_TOKEN)
-        .updater(None)  # Desabilita updater se não for usado explicitamente
-        .build()
-    )
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     # Criar handler principal
-    conversation_bot = ConversationHandlerBot()
+    bot = IRSBotHandler()
 
-    # ✅ REGISTRAR HANDLERS
-    # 1. Conversation handler para questionário
-    application.add_handler(conversation_bot.get_conversation_handler())
+    # Registrar handlers
+    # 1. Comandos principais (fora da conversação)
+    application.add_handler(CommandHandler("start", bot.start))
+    application.add_handler(CommandHandler("calcular", bot.calcular_rapido))
+    application.add_handler(CommandHandler("deducoes", bot.deducoes))
+    application.add_handler(CommandHandler("ajuda", bot.ajuda))
+    application.add_handler(CommandHandler("reset", bot.reset))
 
-    # 2. ✅ NOVO - Callback handler para botões pós-análise
+    # 2. Conversation handler para simulação
+    application.add_handler(bot.get_conversation_handler())
+
+    # 3. Handler para mensagens livres (deve ser último)
     application.add_handler(
-        CallbackQueryHandler(conversation_bot.post_analysis.callback_handler)
+        MessageHandler(filters.TEXT & ~filters.COMMAND, bot.mensagem_livre)
     )
 
-    # 3. Comandos gerais
-    application.add_handler(CommandHandler("ajuda", conversation_bot.ajuda))
-    application.add_handler(CommandHandler("status", conversation_bot.status))
-
-    logger.info("✅ Bot configurado com sistema de análise completa!")
+    logger.info("✅ Bot IRS Portugal configurado com Marinete!")
 
     return application
 
@@ -430,6 +449,5 @@ def create_application():
 if __name__ == "__main__":
     # Teste direto
     app = create_application()
-    print("🤖 Bot Técnico Contábil Virtual iniciado!")
-    print("✅ Sistema de análise pós-questionário ativo!")
+    print("🤖 Bot IRS Portugal - Marinete iniciado!")
     app.run_polling()
