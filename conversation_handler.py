@@ -76,8 +76,10 @@ class IRSBotHandler:
         """Comando /start - Boas-vindas"""
         user = update.effective_user
 
-        # Limpar dados anteriores
+        # Limpar dados anteriores e inicializar estrutura
         context.user_data.clear()
+        context.user_data["respostas_irs"] = {}
+        context.user_data["pergunta_atual"] = 0
 
         logger.info(f"Usuário {user.id} ({user.first_name}) iniciou o bot")
 
@@ -145,7 +147,14 @@ class IRSBotHandler:
     async def processar_resposta(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:
-        """Processa cada resposta do questionário"""
+        """Processa resposta de uma pergunta e avança para a próxima"""
+
+        # Verificar se o questionário foi iniciado corretamente
+        if "respostas_irs" not in context.user_data:
+            await update.message.reply_text(
+                "⚠️ Por favor, inicie a simulação com o comando /simular primeiro."
+            )
+            return ConversationHandler.END
 
         pergunta_atual = context.user_data.get("pergunta_atual", 0)
         resposta = update.message.text
