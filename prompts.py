@@ -96,6 +96,8 @@ WELCOME_MESSAGE = """
 • `/simular` - Fazer simulação completa interativa (20 perguntas)
 • `/calcular` - Calculadora rápida (ex: "30000 saude:500")
 • `/deducoes` - Ver todas as deduções disponíveis
+• `/sugestoes` - Enviar sugestão ou feedback
+• `/contato` - Informações para bot personalizado
 • `/ajuda` - Ver todos os comandos e dicas
 
 💬 **Ou conversa naturalmente comigo:**
@@ -443,6 +445,9 @@ Olá! Aqui estão todas as formas de me usar:
    • `/calcular 30000 saude:500 educacao:300`
 
 📋 `/deducoes` - Lista completa de deduções fiscais
+💡 `/sugestoes` - Enviar sugestão/feedback
+📞 `/contato` - Informações para bot personalizado
+📊 `/stats` - Ver estatísticas do bot (para admins)
 ❓ `/ajuda` - Esta mensagem
 🔄 `/reset` - Recomeçar simulação
 ❌ `/cancel` - Cancelar processo atual

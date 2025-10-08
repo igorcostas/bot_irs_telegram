@@ -12,12 +12,15 @@ from telegram.ext import (
     MessageHandler,
     ConversationHandler,
     ContextTypes,
-    CallbackQueryHandler,
     filters,
 )
 
 # Importar handler LLM
 from llm_handler.groq_handler import GroqHandler
+
+# Importar sistemas de monitoramento e sugestões
+from monitoring import monitoring
+from suggestions import suggestion_manager
 
 # Importar prompts e perguntas
 from prompts import (
@@ -54,7 +57,8 @@ from prompts import (
     PERGUNTA_20,
     PROCESSANDO_RESULTADO,
     CALCULO_RAPIDO,
-) = range(23)
+    AGUARDANDO_SUGESTAO,
+) = range(24)
 
 # Configurar logging
 logging.basicConfig(
@@ -75,6 +79,17 @@ class IRSBotHandler:
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Comando /start - Boas-vindas"""
         user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar usuário e atividade no sistema de monitoramento
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "command", "/start")
 
         # Limpar dados anteriores e inicializar estrutura
         context.user_data.clear()
@@ -93,6 +108,17 @@ class IRSBotHandler:
     async def simular(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Comando /simular - Inicia simulação completa de IRS"""
         user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar usuário e atividade
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "command", "/simular")
 
         # Limpar dados anteriores e iniciar novo questionário
         context.user_data.clear()
@@ -207,6 +233,9 @@ class IRSBotHandler:
                 user_message=prompt_analise, system_prompt=SYSTEM_PROMPT
             )
 
+            # Registrar simulação completada para métricas
+            monitoring.register_simulation_completion(update.effective_user.id)
+
             # Enviar resultado
             await update.message.reply_text(
                 resultado,
@@ -275,6 +304,18 @@ Formata de forma clara, com emojis e seções bem definidas. Lembra-te: és a Ma
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:
         """Comando /calcular - Cálculo rápido de IRS"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar usuário e atividade
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "command", "/calcular")
 
         texto = update.message.text.replace("/calcular", "").strip()
 
@@ -329,6 +370,18 @@ Sê breve e direto! Máximo 10 linhas.
 
     async def deducoes(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Comando /deducoes - Mostra informações sobre deduções"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar atividade
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "command", "/deducoes")
 
         await update.message.reply_text(
             DEDUCTIONS_INFO,
@@ -339,6 +392,18 @@ Sê breve e direto! Máximo 10 linhas.
 
     async def ajuda(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Comando /ajuda - Mostra ajuda"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar atividade
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "command", "/ajuda")
 
         await update.message.reply_text(
             HELP_MESSAGE,
@@ -349,6 +414,12 @@ Sê breve e direto! Máximo 10 linhas.
 
     async def reset(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Comando /reset - Reinicia o bot"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar atividade
+        monitoring.register_activity(user.id, "command", "/reset")
 
         context.user_data.clear()
 
@@ -362,6 +433,12 @@ Sê breve e direto! Máximo 10 linhas.
 
     async def cancelar(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Comando /cancel - Cancela operação atual"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar atividade
+        monitoring.register_activity(user.id, "command", "/cancel")
 
         await update.message.reply_text(
             "❌ Operação cancelada.\n\n"
@@ -371,12 +448,314 @@ Sê breve e direto! Máximo 10 linhas.
 
         return ConversationHandler.END
 
+    async def sugestoes(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Comando /sugestoes - Permite ao usuário enviar sugestão"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar usuário e atividade
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "command", "/sugestoes")
+
+        # Verificar se pode enviar sugestão (cooldown)
+        can_suggest, error_msg = suggestion_manager.can_user_suggest(user.id)
+
+        if not can_suggest:
+            await update.message.reply_text(
+                f"⏰ **Aguarda um pouco**\n\n{error_msg}",
+                parse_mode="Markdown",
+            )
+            return ConversationHandler.END
+
+        # Pedir sugestão
+        await update.message.reply_text(
+            "💡 **Envia a tua sugestão!**\n\n"
+            "Podes sugerir melhorias, novas funcionalidades, "
+            "reportar problemas ou dar feedback geral.\n\n"
+            "📝 Escreve a tua sugestão na próxima mensagem:",
+            parse_mode="Markdown",
+        )
+
+        return AGUARDANDO_SUGESTAO
+
+    async def processar_sugestao(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Processa a sugestão enviada pelo usuário"""
+        user = update.effective_user
+        if not user or not update.message or not update.message.text:
+            return ConversationHandler.END
+
+        suggestion_text = update.message.text
+
+        # Registrar a sugestão
+        success, message = suggestion_manager.add_suggestion(
+            user_id=user.id,
+            suggestion_text=suggestion_text,
+            username=user.username or "",
+            first_name=user.first_name or "",
+        )
+
+        if success:
+            await update.message.reply_text(
+                f"✅ **Sugestão recebida!**\n\n"
+                f"{message}\n\n"
+                f"🙏 Obrigado pelo teu feedback! A tua sugestão será analisada.",
+                parse_mode="Markdown",
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ **Erro ao enviar sugestão**\n\n{message}",
+                parse_mode="Markdown",
+            )
+
+        return ConversationHandler.END
+
+    async def stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Comando /stats - Mostra estatísticas do bot (admin)"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Lista de IDs de administradores - Henrick (user ID 1378607128)
+        admin_ids = [1378607128]  # Henrick - Admin do bot
+
+        if user.id not in admin_ids:
+            await update.message.reply_text("❌ Comando apenas para administradores.")
+            return ConversationHandler.END
+
+        # Registrar atividade
+        monitoring.register_activity(user.id, "command", "/stats")
+
+        try:
+            # Gerar relatório de showcase para clientes
+            showcase_report = monitoring.generate_showcase_report()
+
+            # Gerar relatório de sugestões
+            suggestions_report = suggestion_manager.generate_suggestions_report()
+
+            # Enviar relatório de showcase (dividido se muito longo)
+            if len(showcase_report) > 4000:
+                # Dividir em partes
+                parts = [
+                    showcase_report[i : i + 4000]
+                    for i in range(0, len(showcase_report), 4000)
+                ]
+                for i, part in enumerate(parts):
+                    await update.message.reply_text(
+                        f"**PARTE {i + 1}/{len(parts)}**\n\n{part}",
+                        parse_mode="Markdown",
+                    )
+            else:
+                await update.message.reply_text(
+                    showcase_report,
+                    parse_mode="Markdown",
+                )
+
+            # Enviar relatório de sugestões separadamente
+            await update.message.reply_text(
+                suggestions_report,
+                parse_mode="Markdown",
+            )
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar estatísticas: {e}")
+            await update.message.reply_text(
+                "❌ Erro ao gerar relatório de estatísticas.",
+            )
+
+        return ConversationHandler.END
+
+    async def showcase_detalhado(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> int:
+        """Comando /showcase_detalhado - Relatório técnico completo para clientes (admin apenas)"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Restrito apenas para Henrick (user ID 1378607128)
+        if user.id != 1378607128:
+            await update.message.reply_text("❌ Comando apenas para administradores.")
+            return ConversationHandler.END
+
+        # Registrar atividade
+        monitoring.register_activity(user.id, "command", "/showcase_detalhado")
+
+        try:
+            # Gerar relatório técnico completo
+            stats_report = monitoring.generate_stats_report()
+            showcase_report = monitoring.generate_showcase_report()
+            suggestions_report = suggestion_manager.generate_suggestions_report()
+
+            # Cabeçalho do relatório técnico
+            technical_header = """🔬 **RELATÓRIO TÉCNICO DETALHADO**
+_Análise Completa para Demonstração Técnica_
+
+═══════════════════════════════════════════════
+
+"""
+
+            # Enviar relatório técnico completo
+            await update.message.reply_text(
+                technical_header,
+                parse_mode="Markdown",
+            )
+
+            # Enviar showcase report
+            if len(showcase_report) > 4000:
+                parts = [
+                    showcase_report[i : i + 4000]
+                    for i in range(0, len(showcase_report), 4000)
+                ]
+                for i, part in enumerate(parts, 1):
+                    await update.message.reply_text(
+                        f"**SHOWCASE PART {i}:**\n\n{part}",
+                        parse_mode="Markdown",
+                    )
+            else:
+                await update.message.reply_text(showcase_report, parse_mode="Markdown")
+
+            # Separador
+            await update.message.reply_text(
+                "═══════════════════════════════════════════════"
+            )
+
+            # Enviar stats técnicas
+            if len(stats_report) > 4000:
+                parts = [
+                    stats_report[i : i + 4000]
+                    for i in range(0, len(stats_report), 4000)
+                ]
+                for i, part in enumerate(parts, 1):
+                    await update.message.reply_text(
+                        f"**STATS TÉCNICAS PART {i}:**\n\n{part}",
+                        parse_mode="Markdown",
+                    )
+            else:
+                await update.message.reply_text(stats_report, parse_mode="Markdown")
+
+            # Separador
+            await update.message.reply_text(
+                "═══════════════════════════════════════════════"
+            )
+
+            # Enviar relatório de sugestões
+            await update.message.reply_text(suggestions_report, parse_mode="Markdown")
+
+            # Footer técnico
+            footer = """
+═══════════════════════════════════════════════
+🎯 **CAPACIDADES TÉCNICAS DEMONSTRADAS:**
+
+✅ Monitoramento em tempo real
+✅ Análise de padrões de uso
+✅ Sistema de feedback integrado
+✅ Métricas de performance
+✅ Relatórios automatizados
+✅ Escalabilidade comprovada
+
+📊 _Relatório gerado automaticamente pelo sistema de monitoramento_
+"""
+            await update.message.reply_text(footer, parse_mode="Markdown")
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar showcase detalhado: {e}")
+            await update.message.reply_text(
+                "❌ Erro ao gerar relatório técnico detalhado.",
+            )
+
+        return ConversationHandler.END
+
+    async def contato(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Comando /contato - Informações para contratar serviços de bot personalizado"""
+        user = update.effective_user
+        if not user:
+            return ConversationHandler.END
+
+        # Registrar usuário e atividade
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "command", "/contato")
+
+        contact_message = """
+🤖 **BOT PERSONALIZADO PARA SEU NEGÓCIO**
+
+💼 **VALOR PARA SUA EMPRESA:**
+• ✅ **Automatização 24/7** - Atendimento contínuo aos clientes
+• ✅ **Redução de custos** - Diminui carga da equipe de suporte
+• ✅ **Experiência premium** - Clientes satisfeitos e engajados
+• ✅ **Análise inteligente** - Dados e insights em tempo real
+• ✅ **Escalabilidade total** - Atende milhares simultaneamente
+• ✅ **ROI comprovado** - Retorno rápido do investimento
+
+🎯 **SOLUÇÕES PERSONALIZADAS:**
+• 📊 Bots para contabilidade e consultoria fiscal
+• 🏥 Assistentes virtuais para clínicas e hospitais
+• 🏢 Automação de atendimento empresarial
+• 📚 Sistemas educacionais interativos
+• 🛍️ E-commerce e vendas automatizadas
+• ⚖️ Consultoria jurídica inteligente
+
+🚀 **TECNOLOGIA DE PONTA:**
+• 🧠 Inteligência Artificial avançada (Groq/OpenAI)
+• 📱 Integração completa com Telegram
+• 📊 Sistema de monitoramento e análise
+• 🔒 Segurança e privacidade garantidas
+• 🛠️ Manutenção e suporte contínuo
+
+💰 **INVESTIMENTO ACESSÍVEL:**
+• Preços competitivos
+• Pagamento facilitado
+• Retorno rápido garantido
+
+📞 **ENTRE EM CONTATO AGORA:**
+👨‍💼 **Administrador:** @bgtfx8
+
+💬 **Vamos conversar sobre seu projeto!**
+_Análise gratuita das suas necessidades_
+_Proposta personalizada sem compromisso_
+
+🎁 **OFERTA ESPECIAL:** Demonstração gratuita do seu bot personalizado!
+"""
+
+        await update.message.reply_text(
+            contact_message,
+            parse_mode="Markdown",
+        )
+
+        return ConversationHandler.END
+
     async def mensagem_livre(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> int:
         """Processa mensagens livres (conversação natural)"""
+        user = update.effective_user
+        if not user or not update.message or not update.message.text:
+            return ConversationHandler.END
 
         mensagem = update.message.text
+
+        # Registrar usuário e atividade
+        monitoring.register_user(
+            user_id=user.id,
+            username=user.username or "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
+        )
+        monitoring.register_activity(user.id, "message", mensagem)
 
         try:
             # Gerar resposta com contexto
@@ -410,9 +789,15 @@ Sê breve e direto! Máximo 10 linhas.
                 MessageHandler(filters.TEXT & ~filters.COMMAND, self.processar_resposta)
             ]
 
+        # Estado para aguardar sugestão
+        states[AGUARDANDO_SUGESTAO] = [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, self.processar_sugestao)
+        ]
+
         return ConversationHandler(
             entry_points=[
                 CommandHandler("simular", self.simular),
+                CommandHandler("sugestoes", self.sugestoes),
             ],
             states=states,
             fallbacks=[
@@ -439,10 +824,15 @@ def create_application():
     application.add_handler(CommandHandler("start", bot.start))
     application.add_handler(CommandHandler("calcular", bot.calcular_rapido))
     application.add_handler(CommandHandler("deducoes", bot.deducoes))
+    application.add_handler(CommandHandler("contato", bot.contato))
     application.add_handler(CommandHandler("ajuda", bot.ajuda))
     application.add_handler(CommandHandler("reset", bot.reset))
+    application.add_handler(CommandHandler("stats", bot.stats))
+    application.add_handler(
+        CommandHandler("showcase_detalhado", bot.showcase_detalhado)
+    )
 
-    # 2. Conversation handler para simulação
+    # 2. Conversation handler para simulação e sugestões
     application.add_handler(bot.get_conversation_handler())
 
     # 3. Handler para mensagens livres (deve ser último)
@@ -450,7 +840,9 @@ def create_application():
         MessageHandler(filters.TEXT & ~filters.COMMAND, bot.mensagem_livre)
     )
 
-    logger.info("✅ Bot IRS Portugal configurado com Marinete!")
+    logger.info(
+        "✅ Bot IRS Portugal configurado com Marinete e sistema de monitoramento!"
+    )
 
     return application
 
